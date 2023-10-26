@@ -7,7 +7,7 @@
 // 3. EXTRA: try changing the type from i32 into String everywhere; does your program still compile? What changes are necessary?
 
 /// Merge two array slices (that have to be sorted) into a vector
-fn merge(a: &[String], b: &[String])-> Vec<String> {
+fn merge(a: &[i32], b: &[i32]) -> Vec<i32> {
     let mut dest = Vec::new();
 
     let mut a_idx = 0; //change to mut index
@@ -15,26 +15,26 @@ fn merge(a: &[String], b: &[String])-> Vec<String> {
 
     while a_idx < a.len() && b_idx < b.len() {
         if a[a_idx] <= b[b_idx] {
-            dest.push(a[a_idx].clone());
+            dest.push(a[a_idx]);
             a_idx += 1
         } else {
-            dest.push(b[b_idx].clone());
+            dest.push(b[b_idx]);
             b_idx += 1
         }
     }
 
     for elem in &a[a_idx..] { //fix reference
-        dest.push((*elem).clone())
+        dest.push(*elem)
     }
     for elem in &b[b_idx..] {
-        dest.push((*elem).clone())
+        dest.push(*elem)
     }
 
     dest
 }
 
 /// Take an array slice, and sort into a freshly constructed vector using the above function
-fn merge_sort(data: &[String]) -> Vec<String> {
+fn merge_sort(data: &[i32]) -> Vec<i32> {
     if data.len() > 1 {
         // implement this
         let middle = data.len() / 2;
@@ -49,7 +49,7 @@ fn merge_sort(data: &[String]) -> Vec<String> {
 }
 
 /// Read a bunch of numbers from standard input into a Vec<i32>.
-fn read_numbers() -> Vec<String> {
+fn read_numbers() -> Vec<i32> {
     use std::io;
     let mut result = Vec::new();
     for line in io::stdin().lines().flatten() {
@@ -63,7 +63,7 @@ fn read_numbers() -> Vec<String> {
 
 fn main() {
     //let input = read_numbers();
-    let input = vec!["Hello".to_string(), "world".to_string(),"Great".to_string()];
+    let input = vec![99,15,11,2,7,9,100];
 
     println!("Data to be sorted:");
     println!("{input:?}");
@@ -80,8 +80,10 @@ mod test {
 
     #[test]
     fn test_sort() {
-//	assert_eq!(merge_sort(&[]), vec![]);
-	assert_eq!(merge_sort(&["test".to_owned()]), vec!["test".to_owned()]);
-	assert_eq!(merge_sort(&["test".to_owned(),"TEST".to_owned(),"123".to_owned()]), vec!["123".to_owned(),"test".to_owned(),"TEST".to_owned()]);
+	assert_eq!(merge_sort(&[]), vec![]);
+	assert_eq!(merge_sort(&[5]), vec![5]);
+	assert_eq!(merge_sort(&[1,2,3]), vec![1,2,3]);
+	assert_eq!(merge_sort(&[47,42,5,1]), vec![1,5,42,47]);
+	assert_eq!(merge_sort(&[6,47,42,5,1,123]), vec![1,5,6,42,47,123]);
     }
 }
