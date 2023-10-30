@@ -48,24 +48,28 @@ fn div(x: Expr, y: Expr) -> Expr {
 
 // ...
 
-fn eval(expr: &Expr, var: i64) -> i64 {
+fn eval(expr: &Expr, var: i64) -> Option<i64> {
     // this should return an Option<i64>
     use Expr::*;
     match expr {
-        Const(k) => *k,
-        Var => var,
-        Add(lhs, rhs) => eval(lhs, var) + eval(rhs, var),
-        Sub(lhs, rhs) => eval(lhs, var) - eval(rhs, var),
-        Mul(lhs, rhs) => eval(lhs, var) * eval(rhs, var),
-        Div(lhs, rhs) => eval(lhs, var) /eval(rhs, var),
+        Const(k) => Some(*k),
+        Var => Some(var),
+        Add(lhs, rhs) => if eval(lhs, var)  == None || eval(rhs, var) ==None { return None } else {Some(eval(rhs, var).unwrap() + eval(rhs, var).unwrap())},
+        Sub(lhs, rhs) => if eval(lhs, var)  == None || eval(rhs, var) ==None {return None} else {Some(eval(lhs, var).unwrap() - eval(rhs, var).unwrap())},
+        Mul(lhs, rhs) => if eval(lhs, var)  == None || eval(rhs, var) ==None {return None} else {Some(eval(lhs, var).unwrap() * eval(rhs, var).unwrap())},
+        Div(lhs, rhs) => if eval(lhs, var)  == None || eval(rhs, var) ==None ||eval(rhs, var).unwrap()== 0  { return None} else{ Some(eval(lhs, var).unwrap() /eval(rhs, var).unwrap())}
        
         
         Summation(exprs) => {
             let mut acc = 0;
             for e in exprs {
-                acc += eval(e, var);
+                let x: Option<i64> =eval(e, var);
+                match x {
+                    None => return None, 
+                    Some(x) => acc += x,    
+                }; 
             }
-            acc
+            Some(acc)
         }
     }
 }
@@ -73,19 +77,28 @@ fn eval(expr: &Expr, var: i64) -> i64 {
 fn main() {
     let test = |expr| {
         let value = rand::random::<i8>() as i64;
-        println!(
+        let y =eval(&expr, value);
+        match y { 
+            Some(y)=>   println!(
             "{:?} with Var = {} ==> {}",
             &expr,
             value,
-            eval(&expr, value)
-        );
+            y),
+            None=> println! ("{:?} with Var = {} ==> {}",
+            &expr,
+            value,
+            "None"),
+        };
+
+
     };
 
     test(Const(5));
     test(Var);
     test(sub(Var, Const(5)));
     test(sub(Var, Var));
-    test(add(sub(Var, Const(5)), Const(5)));
+    test(mul(Var,Const(0))); 
+    test(add(div(Var, Const(0)), Const(5)));
     test(Summation(vec![Var, Const(1)]));
 }
 
@@ -96,12 +109,12 @@ mod test {
     #[test]
     fn test_cases() {
         let x = 42;
-        assert_eq!(eval(&Const(5), x), 5);
-        assert_eq!(eval(&Var, x), 42);
-        assert_eq!(eval(&sub(Var, Const(5)), x), 37);
-        assert_eq!(eval(&sub(Var, Var), x), 0);
-        assert_eq!(eval(&add(sub(Var, Const(5)), Const(5)), x), 42);
-        assert_eq!(eval(&Summation(vec![Var, Const(1)]), x), 43);
+        assert_eq!(eval(&Const(5), x), Some(5));
+        assert_eq!(eval(&Var, x), Some(42));
+        assert_eq!(eval(&sub(Var, Const(5)), x), Some(37));
+        assert_eq!(eval(&sub(Var, Var), x), Some(0));
+        assert_eq!(eval(&add(sub(Var, Const(5)), Const(5)), x), Some(42));
+        assert_eq!(eval(&Summation(vec![Var, Const(1)]), x), Some(43));
     }
 }
 
