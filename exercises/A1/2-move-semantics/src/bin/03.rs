@@ -13,6 +13,7 @@ fn main() {
 }
 
 fn append_to_string(s: String) -> String {
+    let mut s=s; 
     s.push_str("Hello World");
 
     s
