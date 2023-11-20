@@ -18,13 +18,16 @@
 //  - add a method "has_room" so that "queue.has_room()" is true if and only if writing to the queue will succeed
 //  - add a method "peek" so that "queue.peek()" returns the same thing as "queue.read()", but leaves the element in the queue
 
+use std::num::NonZeroI128;
+
 struct RingBuffer {
-    data: [u8; 16],
+    data:Box<[u8]>,
     start: usize,
     end: usize,
 }
 
 impl RingBuffer {
+ /* 
     fn new() -> RingBuffer {
         RingBuffer {
             data: [0; 16],
@@ -32,19 +35,55 @@ impl RingBuffer {
             end: 0,
         }
     }
+*/
+    fn new(size:usize) -> RingBuffer {
+
+        let mut x=make_box(size);
+        RingBuffer {
+        data: x,
+        start: 0,
+        end: 0,
+    }
+    }
 
     /// This function tries to read a value from the queue and returns Some(value) if this succeeds,
     /// it returns None if the queue was empty
 
     fn read(&mut self) -> Option<u8> {
-        todo!()
+        
+        if self.start == self.end {
+            None
+        } else {
+         let x= self.data[self.start];
+         self.start= (self.start +1) % self.data.len(); //increment start by 1 
+         Some(x)    
+        }
     }
+    fn peek(&self) -> Option<u8> {
+        if self.start == self.end { // empty queue
+            None
+    }else {
+        Some(self.data[self.start]) // return the oldest data 
+    }
+}
+    fn has_room(&self) -> bool {
+
+        let pos = (self.end + 1) % self.data.len();
+        if pos == self.start {
+            // the buffer can hold no more new data
+            false
+        }else {
+            true        
+        }
+    
+}
 
     /// This function tries to put `value` on the queue; and returns true if this succeeds
     /// It returns false is writing to the queue failed (which can happen if there is not enough room)
 
     fn write(&mut self, value: u8) -> bool {
         self.data[self.end] = value;
+        println!("size={} start ={} end={}", self.data.len(),self.start, self.end);
         let pos = (self.end + 1) % self.data.len();
         if pos == self.start {
             // the buffer can hold no more new data
@@ -59,6 +98,7 @@ impl RingBuffer {
 
 /// This function creates an "owned slice" a user-selectable size by allocating it as a vector (filled with zeores) using vec![], and then turning it
 /// into a Box<[u8]> using the into_boxed_slice() method, see https://doc.rust-lang.org/std/vec/struct.Vec.html#method.into_boxed_slice
+// another explanation https://stackoverflow.com/questions/39615666/what-is-the-use-of-into-boxed-slice-methods
 
 fn make_box(reqsize: usize) -> Box<[u8]> {
     vec![0; reqsize].into_boxed_slice()
@@ -75,13 +115,13 @@ impl Iterator for RingBuffer {
 }
 
 fn main() {
-    let mut queue = RingBuffer::new();
+    let mut queue = RingBuffer::new(5);
     assert!(queue.write(1));
     assert!(queue.write(2));
     assert!(queue.write(3));
     assert!(queue.write(4));
     assert!(queue.write(5));
-    for elem in queue {
+    for elem in queue { // this is calling the read iterator function from the ring
         println!("{elem}");
     }
 }
