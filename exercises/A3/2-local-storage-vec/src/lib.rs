@@ -1,5 +1,10 @@
 use std::collections::btree_map::Values;
-
+use std::mem;
+use std::ops;
+use std::ops::Index;
+use std::ops::Range;
+use std::ops::RangeFrom;
+use std::ops::RangeTo;
 /// A growable, generic list that resides on the stack if it's small,
 /// but is moved to the heap to grow larger if needed.
 /// This list is generic over the items it contains as well as the
@@ -69,7 +74,7 @@ impl<T, const N: usize> From<Vec<T>> for LocalStorageVec<T, N> {
         Self::Heap(v)
     }
 } 
-impl<T: Default +Copy, const N: usize> LocalStorageVec<T, N> {
+impl<T: Default+ Copy, const N: usize> LocalStorageVec<T, N> {
     fn new() -> Self {
         println!("new");
         LocalStorageVec::Stack{buf: [Default::default();N], len:0 }
@@ -112,6 +117,7 @@ impl<T: Default +Copy, const N: usize> LocalStorageVec<T, N> {
             
     }
 }
+
 
 fn pop(&mut self) -> Option<T> {
     match self {
@@ -228,20 +234,90 @@ fn clear(&mut self)   {
 }
 
 
-impl<T: Default + Copy, const N: usize> Iterator for LocalStorageVecIter<T, N> {
+
+
+impl<T: Default, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
+    
+    
+    fn as_ref(& self) -> &[T] {
+        match self {
+            LocalStorageVec::Heap(v) => v.as_ref(),
+            LocalStorageVec::Stack { buf, len }=> &buf[0..*len],                
+    }
+
+}
+}
+
+
+
+// index - range[n..m]
+impl<T: Default, const N: usize> Index<usize> for LocalStorageVec<T, N> {
+    type Output=T;
+    
+    fn index(&self, index: usize ) -> &Self::Output {
+        let ref_buf=self.as_ref();
+        &ref_buf[index]
+}
+}
+// index - range[n..m]
+impl<T: Default, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
+    type Output=[T];
+    
+    fn index(&self, index: Range<usize> ) -> &Self::Output {
+        let ref_buf=self.as_ref();
+        &ref_buf[index.start..index.end]
+}
+}
+
+// index RangeTo vec[..n]
+impl<T: Default, const N: usize> Index<RangeTo<usize>> for LocalStorageVec<T, N> {
+    type Output=[T];
+    
+    fn index(&self, index: RangeTo<usize> ) -> &Self::Output {
+        let ref_buf=self.as_ref();
+        &ref_buf[..index.end]
+}
+}
+
+// index RangeFrom vec[n..]
+impl<T: Default, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, N> {
+    type Output=[T];
+    
+    fn index(&self, index: RangeFrom<usize> ) -> &Self::Output {
+        let ref_buf=self.as_ref();
+        &ref_buf[index.start..]
+}
+}
+
+
+impl<T: Default, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
+    
+    
+    fn as_mut(&mut self) -> &mut[T] {
+        match self {
+            LocalStorageVec::Heap(v) => v.as_mut(),
+            LocalStorageVec::Stack { buf, len }=> &mut buf[0..*len],                
+    }
+
+}
+}
+
+
+
+impl<T: Default, const N: usize> Iterator for LocalStorageVecIter<T, N> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match &self.vec {
+        match &mut self.vec {
             LocalStorageVec::Stack { buf, len } if self.counter < *len => {
                 // If there are elements in the stack buffer, return the next one
-                let element = buf[self.counter];
+                let element = mem::take(&mut buf[self.counter]); // instead of T:Copy, use mem::take to get the ownership of element
                 self.counter += 1;
                 Some(element)
             }
-            LocalStorageVec::Heap(vec) if self.counter < vec.len() => {
+            LocalStorageVec::Heap( vec) if self.counter < vec.len() => {
                 // If there are elements on the heap, return the next one
-                let element = vec[self.counter];
+                let element = mem::take(&mut vec[self.counter]);
                 self.counter += 1;
                 Some(element)
             }
@@ -252,7 +328,7 @@ impl<T: Default + Copy, const N: usize> Iterator for LocalStorageVecIter<T, N> {
 
 
 // Implementation of IntoIterator trait for LocalStorageVec
-impl<T :Default + Copy, const N: usize> IntoIterator for LocalStorageVec<T, N> {
+impl<T :Default, const N: usize> IntoIterator for LocalStorageVec<T, N> {
     type Item = T;
     type IntoIter = LocalStorageVecIter<T, N>;
 
@@ -439,32 +515,32 @@ mod test {
      }
 
     // Uncomment me for part E
-    // #[test]
-    // fn it_as_refs() {
-    //     let vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
-    //     let slice: &[i32] = vec.as_ref();
-    //     assert!(slice.len() == 128);
-    //     let vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
-    //     let slice: &[i32] = vec.as_ref();
-    //     assert!(slice.len() == 128);
+    #[test]
+     fn it_as_refs() {
+             let vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
+         let slice: &[i32] = vec.as_ref();
+         assert!(slice.len() == 128);
+         let vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
+         let slice: &[i32] = vec.as_ref();
+         assert!(slice.len() == 128);
     //
-    //     let mut vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
-    //     let slice_mut: &[i32] = vec.as_mut();
-    //     assert!(slice_mut.len() == 128);
-    //     let mut vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
-    //     let slice_mut: &[i32] = vec.as_mut();
-    //     assert!(slice_mut.len() == 128);
-    // }
+        let mut vec: LocalStorageVec<i32, 256> = LocalStorageVec::from([0; 128]);
+         let slice_mut: &[i32] = vec.as_mut();
+         assert!(slice_mut.len() == 128);
+         let mut vec: LocalStorageVec<i32, 32> = LocalStorageVec::from([0; 128]);
+         let slice_mut: &[i32] = vec.as_mut();
+         assert!(slice_mut.len() == 128);
+    }
 
     // Uncomment me for part F
-    // #[test]
-    // fn it_indexes() {
-    //     let vec: LocalStorageVec<i32, 10> = LocalStorageVec::from([0, 1, 2, 3, 4, 5]);
-    //     assert_eq!(vec[1], 1);
-    //     assert_eq!(vec[..2], [0, 1]);
-    //     assert_eq!(vec[4..], [4, 5]);
-    //     assert_eq!(vec[1..3], [1, 2]);
-    // }
+     #[test]
+     fn it_indexes() {
+         let vec: LocalStorageVec<i32, 10> = LocalStorageVec::from([0, 1, 2, 3, 4, 5]);
+         assert_eq!(vec[1], 1);
+         assert_eq!(vec[..2], [0, 1]); //Range index 
+         assert_eq!(vec[4..], [4, 5]);
+         assert_eq!(vec[1..3], [1, 2]);
+     }
 
     // Uncomment me for part H
     // #[test]
