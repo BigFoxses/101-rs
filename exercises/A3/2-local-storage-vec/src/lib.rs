@@ -236,7 +236,7 @@ fn clear(&mut self)   {
 
 
 
-impl<T: Default, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
+impl<T, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
     
     
     fn as_ref(& self) -> &[T] {
@@ -248,10 +248,38 @@ impl<T: Default, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
 }
 }
 
+trait LocalStorageVecIndex {}
+
+impl  LocalStorageVecIndex for usize{
+    
+   
+    }
 
 
-// index - range[n..m]
-impl<T: Default, const N: usize> Index<usize> for LocalStorageVec<T, N> {
+
+impl  LocalStorageVecIndex for RangeTo<usize> {
+
+}
+impl  LocalStorageVecIndex for RangeFrom<usize> {
+
+}
+impl LocalStorageVecIndex for Range<usize>{
+
+    
+}
+
+impl<T, const N: usize, I: LocalStorageVecIndex>  Index<I> for LocalStorageVec<T, N> 
+where  [T]:Index<I> {
+    type Output=T;
+    
+    fn index(&self, index: I ) -> &Self::Output {
+        let ref_buf=self.as_ref();
+        &ref_buf[index]
+}
+}
+/* 
+// index - [n]
+impl<T, const N: usize> Index<usize> for LocalStorageVec<T, N> {
     type Output=T;
     
     fn index(&self, index: usize ) -> &Self::Output {
@@ -260,7 +288,7 @@ impl<T: Default, const N: usize> Index<usize> for LocalStorageVec<T, N> {
 }
 }
 // index - range[n..m]
-impl<T: Default, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
+impl<T, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
     type Output=[T];
     
     fn index(&self, index: Range<usize> ) -> &Self::Output {
@@ -270,7 +298,7 @@ impl<T: Default, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
 }
 
 // index RangeTo vec[..n]
-impl<T: Default, const N: usize> Index<RangeTo<usize>> for LocalStorageVec<T, N> {
+impl<T, const N: usize> Index<RangeTo<usize>> for LocalStorageVec<T, N> {
     type Output=[T];
     
     fn index(&self, index: RangeTo<usize> ) -> &Self::Output {
@@ -280,7 +308,7 @@ impl<T: Default, const N: usize> Index<RangeTo<usize>> for LocalStorageVec<T, N>
 }
 
 // index RangeFrom vec[n..]
-impl<T: Default, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, N> {
+impl<T, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, N> {
     type Output=[T];
     
     fn index(&self, index: RangeFrom<usize> ) -> &Self::Output {
@@ -289,8 +317,9 @@ impl<T: Default, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, 
 }
 }
 
+*/
 
-impl<T: Default, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
+impl<T, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
     
     
     fn as_mut(&mut self) -> &mut[T] {
@@ -304,7 +333,7 @@ impl<T: Default, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
 
 
 
-impl<T: Default, const N: usize> Iterator for LocalStorageVecIter<T, N> {
+impl<T:Default, const N: usize> Iterator for LocalStorageVecIter<T, N> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -327,17 +356,59 @@ impl<T: Default, const N: usize> Iterator for LocalStorageVecIter<T, N> {
 }
 
 
+pub struct LocalStorageVecRefIter<'a, T, const N: usize> {
+    vec: &'a LocalStorageVec<T, N>,
+    counter: usize,
+}
+impl<'a,T, const N: usize> Iterator for LocalStorageVecRefIter<'a,T, N> {
+    type Item =  &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.vec {
+            LocalStorageVec::Stack { buf, len } if self.counter < *len => {
+                // If there are elements in the stack buffer, return the next one
+                let element = &buf[self.counter]; // return reference to T
+                self.counter += 1;
+                Some(element)
+            }
+            LocalStorageVec::Heap( vec) if self.counter < vec.len() => {
+                // If there are elements on the heap, return the next one
+                let element = &vec[self.counter];
+                self.counter += 1;
+                Some(element)
+            }
+            _ => None, // No more elements to iterate over
+        }
+    }
+}
+
+
+
 // Implementation of IntoIterator trait for LocalStorageVec
-impl<T :Default, const N: usize> IntoIterator for LocalStorageVec<T, N> {
+impl<T:Default, const N: usize> IntoIterator for LocalStorageVec<T, N> {
     type Item = T;
     type IntoIter = LocalStorageVecIter<T, N>;
 
-    fn into_iter(self) -> Self::IntoIter {
+    fn into_iter(self) -> Self::IntoIter { // here into_iter would consume localstoragevec ! owned iterator rather borrowing iterator
         LocalStorageVecIter {
             vec: self,
             counter: 0,
         }
     }
+}
+
+
+impl<T, const N: usize> LocalStorageVec<T,N> {
+    
+
+    pub fn iter<'a>(&'a self) -> LocalStorageVecRefIter<'a,T,N> { //localstoragerefIter has the same lifetime as localStorageVec 
+        LocalStorageVecRefIter {
+            vec:  self,
+            counter:0,
+        }
+         
+    }
+
 }
 #[cfg(test)]
 mod test {
@@ -543,21 +614,21 @@ mod test {
      }
 
     // Uncomment me for part H
-    // #[test]
-    // fn it_borrowing_iters() {
-    //     let vec: LocalStorageVec<String, 10> = LocalStorageVec::from([
-    //         "0".to_owned(),
-    //         "1".to_owned(),
-    //         "2".to_owned(),
-    //         "3".to_owned(),
-    //         "4".to_owned(),
-    //         "5".to_owned(),
-    //     ]);
-    //     let iter = vec.iter();
-    //     for _ in iter {}
-    //     // This requires the `vec` not to be consumed by the call to `iter()`
-    //     drop(vec);
-    // }
+    #[test]
+     fn it_borrowing_iters() {
+         let vec: LocalStorageVec<String, 10> = LocalStorageVec::from([
+             "0".to_owned(),
+             "1".to_owned(),
+             "2".to_owned(),
+             "3".to_owned(),
+             "4".to_owned(),
+             "5".to_owned(),
+         ]);
+         let iter = vec.iter();
+         for i in iter { println!(" borrow iterator{}  = ", i);}
+         // This requires the `vec` not to be consumed by the call to `iter()`
+         drop(vec);
+     }
 
     // Uncomment me for part J
     // #[test]
