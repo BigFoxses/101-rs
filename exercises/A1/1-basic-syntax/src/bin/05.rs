@@ -40,6 +40,27 @@ fn print_ref<T>(t:& T) where
 }
 
 
+use std::ops::Index;
+use std::slice::SliceIndex;
+
+struct A<'a, T> {
+    slice: &'a [T],
+}
+
+impl<'a, T, Idx> Index<Idx> for A<'a, T>
+where
+    Idx: SliceIndex<[T]>,
+{
+    type Output = <[T] as Index<Idx>>::Output;
+
+    #[inline(always)]
+    fn index(&self, index: Idx) -> &Self::Output {
+        self.slice.index(index)
+    }
+}
+
+
+
 
   
 fn main() {
@@ -77,6 +98,13 @@ fn main() {
 for element in slice.iter_mut() {
     *element += 1;
 }
+
+
+let aa: Vec<u64> = vec![0; 10];
+let coefficient_iterable = A { slice: &aa };
+assert_eq!(coefficient_iterable[1..2],[0,0] );
+assert_eq!(coefficient_iterable[1],0 );
+
 }
 
 

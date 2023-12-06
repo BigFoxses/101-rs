@@ -5,6 +5,7 @@ use std::ops::Index;
 use std::ops::Range;
 use std::ops::RangeFrom;
 use std::ops::RangeTo;
+use std::slice::SliceIndex;
 /// A growable, generic list that resides on the stack if it's small,
 /// but is moved to the heap to grow larger if needed.
 /// This list is generic over the items it contains as well as the
@@ -248,36 +249,16 @@ impl<T, const N: usize> AsRef<[T]> for LocalStorageVec<T, N> {
 }
 }
 
-trait LocalStorageVecIndex {}
-
-impl  LocalStorageVecIndex for usize{
-    
-   
-    }
 
 
 
-impl  LocalStorageVecIndex for RangeTo<usize> {
+ 
 
-}
-impl  LocalStorageVecIndex for RangeFrom<usize> {
 
-}
-impl LocalStorageVecIndex for Range<usize>{
 
-    
-}
-
-impl<T, const N: usize, I: LocalStorageVecIndex>  Index<I> for LocalStorageVec<T, N> 
-where  [T]:Index<I> {
-    type Output=T;
-    
-    fn index(&self, index: I ) -> &Self::Output {
-        let ref_buf=self.as_ref();
-        &ref_buf[index]
-}
-}
 /* 
+
+// Approach # 1  -- PART F - it_index() 
 // index - [n]
 impl<T, const N: usize> Index<usize> for LocalStorageVec<T, N> {
     type Output=T;
@@ -287,6 +268,7 @@ impl<T, const N: usize> Index<usize> for LocalStorageVec<T, N> {
         &ref_buf[index]
 }
 }
+
 // index - range[n..m]
 impl<T, const N: usize> Index<Range<usize>> for LocalStorageVec<T, N> {
     type Output=[T];
@@ -316,8 +298,41 @@ impl<T, const N: usize> Index<RangeFrom<usize>> for LocalStorageVec<T, N> {
         &ref_buf[index.start..]
 }
 }
-
 */
+
+// approach #2   - PART F - it_index() 
+pub trait LocalStorageVecIndex{
+}
+
+
+impl LocalStorageVecIndex for usize {
+}
+
+impl LocalStorageVecIndex for Range<usize> {
+}
+
+impl LocalStorageVecIndex for RangeTo<usize> {
+}
+
+impl LocalStorageVecIndex for RangeFrom<usize> {
+}
+
+// approach #2 -- PART F - https://doc.rust-lang.org/rust-by-example/generics/bounds/testcase_empty.html
+impl<T, const N: usize, I: LocalStorageVecIndex >  Index<I> for LocalStorageVec<T, N>
+where [T] : Index<I>
+
+{
+    type Output = <[T] as Index<I> >::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        let ref_buf = self.as_ref();
+        ref_buf.index(index) 
+        }
+}     
+
+// Your LocalStorageVec type (Assuming you have it defined)
+
+
 
 impl<T, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
     
@@ -330,6 +345,48 @@ impl<T, const N: usize> AsMut<[T]> for LocalStorageVec<T, N> {
 
 }
 }
+
+//part J: Deref and DerefMut 
+//utilize the 'deref coercion' feature to allow types to be treated as if they were wome types look like.
+//allow us to use any mthod that is defined on [T] by calling them on a localStorageVec<T, N>
+// https://doc.rust-lang.org/book/ch15-02-deref.html#treating-a-type-like-a-reference-by-implementing-the-deref-trait
+use std::ops::{Deref, DerefMut};
+impl<T, const N: usize> Deref for LocalStorageVec<T, N> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        <Self as AsRef<[T]>>::as_ref(self)
+     //   self.as_ref()  
+    }
+}
+
+impl<T, const N: usize> DerefMut for LocalStorageVec<T, N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        <Self as AsMut<[T]>>::as_mut(self)
+    }
+}
+
+
+// Blanket implementation of Index for LocalStorageVec<T, N>
+// use SliceIndex<T> for usize, range<usize>... Output to decide the Output Type 
+// approach #3  - PART F - it_index() 
+//
+//impl<T, const N: usize, I > std::ops::Index<I> for LocalStorageVec<T, N>
+//where I: SliceIndex<[T]>, [T] : Index<I>
+//
+//{
+//    type Output = <[T] as Index<I> >::Output;
+
+//    fn index(&self, index: I) -> &Self::Output {
+//        let ref_buf = self.as_ref();
+//        ref_buf.index(index) 
+//        }
+//}
+
+// You can now use indexing with LocalStorageVec<T, N> and slices [T]
+// and the compiler will look for implementations for LocalStorageVecIndex
+// for the provided index types.
+
 
 
 
@@ -607,7 +664,7 @@ mod test {
      #[test]
      fn it_indexes() {
          let vec: LocalStorageVec<i32, 10> = LocalStorageVec::from([0, 1, 2, 3, 4, 5]);
-         assert_eq!(vec[1], 1);
+         assert_eq!(vec[2], 2);
          assert_eq!(vec[..2], [0, 1]); //Range index 
          assert_eq!(vec[4..], [4, 5]);
          assert_eq!(vec[1..3], [1, 2]);
@@ -631,16 +688,16 @@ mod test {
      }
 
     // Uncomment me for part J
-    // #[test]
-    // fn it_derefs() {
-    //     use std::ops::{Deref, DerefMut};
-    //     let vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
-    //     // `chunks` is a method that's defined for slices `[T]`, that we can use thanks to `Deref`
-    //     let chunks = vec.chunks(4);
-    //     let slice: &[_] = vec.deref();
+     #[test]
+     fn it_derefs() {
+         use std::ops::{Deref, DerefMut};
+         let vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
+         // `chunks` is a method that's defined for slices `[T]`, that we can use thanks to `Deref`
+         let chunks = vec.chunks(4);
+         let slice: &[_] = vec.deref();
     //
-    //     let mut vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
-    //     let chunks = vec.chunks_mut(4);
-    //     let slice: &mut [_] = vec.deref_mut();
-    // }
+         let mut vec: LocalStorageVec<_, 128> = LocalStorageVec::from([0; 128]);
+         let chunks = vec.chunks_mut(4);
+         let slice: &mut [_] = vec.deref_mut();
+     }
 }
