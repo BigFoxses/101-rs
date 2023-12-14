@@ -1,6 +1,7 @@
 [workspace]
 members = [
     # Exercise scaffolding
+    "exercises/B/quizzer",
     "exercises/0-intro",
     "exercises/A1/1-basic-syntax",
     "exercises/A1/2-move-semantics/",

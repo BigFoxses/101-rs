@@ -32,6 +32,8 @@ fn main() -> anyhow::Result<()> {
 
    let post_json: String = serde_json::to_string_pretty(&post)?;
    println!("serialized = {:?}", post_json);
-
+   let config = std::fs::read_to_string("cluster.json")?;
+   //let map: = serde_json::from_str(&config)?;
+   //println!("cluster info: {:#?}", map);
     Ok(())
 }

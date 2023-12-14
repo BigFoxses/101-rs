@@ -41,7 +41,9 @@ fn print_ref<T>(t:& T) where
 
 
 use std::ops::Index;
+
 use std::slice::SliceIndex;
+use std::thread;
 
 struct A<'a, T> {
     slice: &'a [T],
@@ -102,8 +104,58 @@ for element in slice.iter_mut() {
 
 let aa: Vec<u64> = vec![0; 10];
 let coefficient_iterable = A { slice: &aa };
-assert_eq!(coefficient_iterable[1..2],[0,0] );
+assert_eq!(coefficient_iterable[1..3],[0,0] ); // 1..3 => 1 to 2 inclusive 
 assert_eq!(coefficient_iterable[1],0 );
+
+
+let numbers = Vec::from_iter(0..=1000);
+
+let t = thread::spawn(move || {
+    let len = numbers.len();
+    let sum = numbers.iter().sum::<usize>();
+    sum / len
+});
+
+let average = t.join().unwrap();
+
+println!("average: {average}");
+
+let numbers = Vec::from_iter(0..=1000); // immutable - reference without moving the ownership into closure
+
+let average = thread::scope(|spawner| {
+    spawner.spawn(|| {
+        let len = numbers.len();
+        let sum = numbers.iter().sum::<usize>();
+        sum / len
+    }).join().unwrap()
+});
+
+println!("average: {average:?}");
+println!{"{:?}",numbers}
+
+let p: Vec<u32> = vec![0, 1, 2, 3, 4];
+
+let p2: Vec<u32> = p.iter().map(|x| x * 2).collect();
+let sum = p.iter().try_fold(0, |acc: u32, x: &u32| acc.checked_add(*x));
+
+
+println!("sum: {:?}", sum);
+
+let seed = vec![1, 5, -3];
+let res = {
+    use Result::{Err as Break, Ok as Next};
+    seed.iter()
+        .cycle()
+        .try_fold(0, |accum, value| match accum + value {
+            res if res > 10 => Break(res),
+            next => Next(next),
+        })
+        .unwrap_err()
+};
+
+//let res = iter.try_fold(...).unwrap_or_else(|res| res);
+
+println!("{}", res);
 
 }
 

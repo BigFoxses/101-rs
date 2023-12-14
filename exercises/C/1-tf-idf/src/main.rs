@@ -29,8 +29,11 @@ fn term_frequency(document: &str) -> HashMap<&str, usize> {
         // good enough definition of "word" for this exercise
         .split_whitespace()
         // using fold to get some extra practice with monoids. Using a for loop is also totally fine.
-        .fold(HashMap::default(), |mut hash_map, word| todo!())
-}
+        .fold(HashMap::default(), |mut hash_map: HashMap<&str, usize>, word:&str| {hash_map.entry(word).and_modify(|v| *v += 1).or_insert(1); hash_map})
+
+
+
+    }
 
 fn combine_occurences<'a>(
     a: HashMap<&'a str, usize>,
@@ -41,21 +44,26 @@ fn combine_occurences<'a>(
     //
     // NOTE: we're already using all of our cores to process whole documents. Using a parallel iterator
     // here would likely make performance worse!
-    b.into_iter().fold(a, |mut hash_map, (word, count)| todo!())
+    b.into_iter().fold(a, |mut hash_map, (word, count)| { hash_map.entry(word).and_modify(|v| *v += count).or_insert(count);  hash_map }) 
+    // if hashmap is occupied, then add the count to the existing value using and_modify else set the value to the count (using or_insert)
 }
 
 /// Map each word in the document to the value 1
 fn term_occurence(document: &str) -> HashMap<&str, usize> {
-    todo!()
+    document.split_whitespace().fold(HashMap::default(), |mut hash_map: HashMap<&str, usize>, word| {hash_map.entry(word).or_insert(1); hash_map})
+    // each word in the document has a count of 1.
+
 }
+
 
 /// For each word, in how many of the documents it occurs
 fn document_frequency<'a>(
     documents: impl rayon::iter::ParallelIterator<Item = &'a str>,
 ) -> HashMap<&'a str, usize> {
     // map each document to a hashmap that maps words to whether they occur (use `term_occurence`),
-    // then reduce, combining the counts.
-    todo!()
+    // then reduce, combining the counts. 
+    documents.into_par_iter().map( |document| term_occurence(document)).reduce(HashMap::default, combine_occurences)
+
 }
 
 fn score_document(
